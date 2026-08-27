@@ -41,6 +41,9 @@
 
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+    
+    /* NEW: Speed Multiplier */
+    --speed: 1; 
   }
 
   /* ================= midnight (dark) theme ================= */
@@ -216,10 +219,12 @@
     min-height: 0;
   }
   .lane{ overflow: hidden; width: 100%; padding: 6px 0; }
+  
+  /* CHANGED: Duration is dynamically calculated based on the global --speed variable */
   .lane-track{
     display: flex; align-items: baseline; gap: clamp(36px, 5vw, 76px);
     width: max-content;
-    animation: lane-scroll-left var(--dur, 42s) linear infinite;
+    animation: lane-scroll-left calc(var(--dur, 42s) / var(--speed, 1)) linear infinite;
     will-change: transform;
   }
   .lane.reverse .lane-track{ animation-name: lane-scroll-right; }
@@ -562,6 +567,12 @@
           <option value="serif">Serif Font</option>
           <option value="sans">Sans Font</option>
           <option value="hand">Handwriting</option>
+        </select>
+        <!-- NEW SPEED SELECTOR -->
+        <select class="control-select" id="speedSelect" aria-label="Select animation speed">
+          <option value="0.6">Slow Speed</option>
+          <option value="1">Normal Speed</option>
+          <option value="1.5">Fast Speed</option>
         </select>
       </div>
 
@@ -961,12 +972,15 @@
   });
 
   // ---------------------------------------------------------------
-  // 4. Theme & Font Controls
+  // 4. Theme, Font & Speed Controls
   // ---------------------------------------------------------------
   const THEME_KEY = 'quietude_theme';
   const FONT_KEY = 'quietude_font';
+  const SPEED_KEY = 'quietude_speed';
+  
   const themeSelect = document.getElementById('themeSelect');
   const fontSelect = document.getElementById('fontSelect');
+  const speedSelect = document.getElementById('speedSelect');
 
   function applyTheme(theme){
     document.documentElement.dataset.theme = theme;
@@ -976,12 +990,19 @@
     document.documentElement.dataset.font = font;
     fontSelect.value = font;
   }
+  function applySpeed(speed){
+    document.documentElement.style.setProperty('--speed', speed);
+    speedSelect.value = speed;
+  }
 
   (function initStyles(){
     var storedTheme = localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     var storedFont = localStorage.getItem(FONT_KEY) || 'serif';
+    var storedSpeed = localStorage.getItem(SPEED_KEY) || '1';
+    
     applyTheme(storedTheme);
     applyFont(storedFont);
+    applySpeed(storedSpeed);
   })();
 
   themeSelect.addEventListener('change', function(e){
@@ -992,6 +1013,11 @@
   fontSelect.addEventListener('change', function(e){
     applyFont(e.target.value);
     localStorage.setItem(FONT_KEY, e.target.value);
+  });
+  
+  speedSelect.addEventListener('change', function(e){
+    applySpeed(e.target.value);
+    localStorage.setItem(SPEED_KEY, e.target.value);
   });
 
   // ---------------------------------------------------------------
@@ -1011,13 +1037,26 @@
   let activeTagsSet = new Set();
 
   // ---------------------------------------------------------------
-  // 6. Data layer 
+  // 6. Data layer (Personalized per user)
   // ---------------------------------------------------------------
   let quotes = [];
   let books = [];
   
   let localLikes = [];
   let localBookLikes = [];
+
+  function getLikesKey(type) {
+    const baseKey = type === 'quotes' ? 'quietude_likes' : 'quietude_book_likes';
+    return currentUser ? `${baseKey}_${currentUser.id}` : baseKey;
+  }
+
+  function loadLocalLikes() {
+    localLikes = JSON.parse(localStorage.getItem(getLikesKey('quotes')) || '[]');
+    localBookLikes = JSON.parse(localStorage.getItem(getLikesKey('books')) || '[]');
+    
+    quotes = quotes.map(q => ({ ...q, likedByUser: localLikes.includes(q.id) }));
+    books = books.map(b => ({ ...b, likedByUser: localBookLikes.includes(b.id) }));
+  }
 
   function approvedQuotes(){ return quotes.filter(function(v){ return v.status === 'Approved'; }); }
   
@@ -1307,8 +1346,9 @@
             localBookLikes = localBookLikes.filter(id => id !== book.id);
             await supabaseClient.from('user_book_likes').delete().match({ user_id: currentUser.id, book_id: book.id });
           }
-          
+          localStorage.setItem(getLikesKey('books'), JSON.stringify(localBookLikes));
           renderBooks(); 
+          
           await supabaseClient.from('books').update({ likes: book.likes }).eq('id', book.id);
         });
       });
@@ -1399,6 +1439,7 @@
         localLikes = localLikes.filter(id => id !== quote.id); 
         await supabaseClient.from('user_quote_likes').delete().match({ user_id: currentUser.id, quote_id: quote.id });
       }
+      localStorage.setItem(getLikesKey('quotes'), JSON.stringify(localLikes));
 
       renderFocus();
       focusLikeBtn.classList.remove('like-pop');
@@ -1478,6 +1519,7 @@
           quote.likes = Math.max(0, quote.likes - 1);
           
           localLikes = localLikes.filter(id => id !== quote.id);
+          localStorage.setItem(getLikesKey('quotes'), JSON.stringify(localLikes));
           await supabaseClient.from('user_quote_likes').delete().match({ user_id: currentUser.id, quote_id: quote.id });
 
           renderLikedGrid();
