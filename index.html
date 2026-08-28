@@ -42,8 +42,7 @@
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
     --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
     
-    /* NEW: Speed Multiplier */
-    --speed: 1; 
+    --speed: 1.0; 
   }
 
   /* ================= midnight (dark) theme ================= */
@@ -144,13 +143,25 @@
   }
   .brand-dot{ width: 6px; height: 6px; border-radius: 50%; background: var(--sage); display: inline-block; transform: translateY(-2px); }
 
-  .controls { display: flex; align-items: center; gap: 12px; }
+  .controls { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
   .control-select { 
     background: var(--bg-deep); border: 1px solid var(--line); color: var(--ink-soft); 
     padding: 6px 12px; border-radius: 100px; font-size: 13px; font-weight: 500; 
     cursor: pointer; transition: all 0.2s ease; outline: none;
   }
   .control-select:hover { border-color: var(--sage); color: var(--ink); }
+
+  /* ================= speed slider ================= */
+  .control-slider-wrap {
+    display: inline-flex; align-items: center; gap: 8px;
+    background: var(--bg-deep); border: 1px solid var(--line); color: var(--ink-soft); 
+    padding: 4px 14px; border-radius: 100px; font-size: 13px; font-weight: 500;
+  }
+  .control-slider-wrap label { margin: 0; cursor: pointer; }
+  .control-slider-wrap input[type="range"] {
+    accent-color: var(--sage); width: 70px; cursor: pointer;
+  }
+  #speedValue { font-variant-numeric: tabular-nums; min-width: 32px; text-align: right; }
 
   .nav-links{ display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
 
@@ -220,7 +231,6 @@
   }
   .lane{ overflow: hidden; width: 100%; padding: 6px 0; }
   
-  /* CHANGED: Duration is dynamically calculated based on the global --speed variable */
   .lane-track{
     display: flex; align-items: baseline; gap: clamp(36px, 5vw, 76px);
     width: max-content;
@@ -568,12 +578,13 @@
           <option value="sans">Sans Font</option>
           <option value="hand">Handwriting</option>
         </select>
-        <!-- NEW SPEED SELECTOR -->
-        <select class="control-select" id="speedSelect" aria-label="Select animation speed">
-          <option value="0.6">Slow Speed</option>
-          <option value="1">Normal Speed</option>
-          <option value="1.5">Fast Speed</option>
-        </select>
+        
+        <!-- NEW SPEED SLIDER -->
+        <div class="control-slider-wrap">
+          <label for="speedSlider">Speed</label>
+          <input type="range" id="speedSlider" min="0.2" max="3.0" step="0.1" aria-label="Adjust animation speed" />
+          <span id="speedValue">1.0x</span>
+        </div>
       </div>
 
       <div class="nav-links">
@@ -582,7 +593,6 @@
         <button class="nav-link" data-view="liked" type="button">
           Liked <span class="count" id="likedCount">0</span>
         </button>
-        <!-- AUTH BUTTON -->
         <button class="nav-link" id="authNavBtn" type="button" style="font-weight: 600;">Sign In</button>
         <button class="nav-cta" id="openSubmit" type="button">Submit a Quote</button>
       </div>
@@ -980,7 +990,8 @@
   
   const themeSelect = document.getElementById('themeSelect');
   const fontSelect = document.getElementById('fontSelect');
-  const speedSelect = document.getElementById('speedSelect');
+  const speedSlider = document.getElementById('speedSlider');
+  const speedValue = document.getElementById('speedValue');
 
   function applyTheme(theme){
     document.documentElement.dataset.theme = theme;
@@ -991,14 +1002,16 @@
     fontSelect.value = font;
   }
   function applySpeed(speed){
-    document.documentElement.style.setProperty('--speed', speed);
-    speedSelect.value = speed;
+    const num = parseFloat(speed).toFixed(1);
+    document.documentElement.style.setProperty('--speed', num);
+    speedSlider.value = num;
+    speedValue.textContent = num + 'x';
   }
 
   (function initStyles(){
     var storedTheme = localStorage.getItem(THEME_KEY) || (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
     var storedFont = localStorage.getItem(FONT_KEY) || 'serif';
-    var storedSpeed = localStorage.getItem(SPEED_KEY) || '1';
+    var storedSpeed = localStorage.getItem(SPEED_KEY) || '1.0';
     
     applyTheme(storedTheme);
     applyFont(storedFont);
@@ -1015,7 +1028,7 @@
     localStorage.setItem(FONT_KEY, e.target.value);
   });
   
-  speedSelect.addEventListener('change', function(e){
+  speedSlider.addEventListener('input', function(e){
     applySpeed(e.target.value);
     localStorage.setItem(SPEED_KEY, e.target.value);
   });
