@@ -234,7 +234,7 @@
   .lane-track{
     display: flex; align-items: baseline; gap: clamp(36px, 5vw, 76px);
     width: max-content;
-    animation: lane-scroll-left calc(var(--dur, 42s) / var(--speed, 1)) linear infinite;
+    animation: lane-scroll-left calc(var(--dur, 42s) / var(--speed, 1.0)) linear infinite;
     will-change: transform;
   }
   .lane.reverse .lane-track{ animation-name: lane-scroll-right; }
@@ -579,10 +579,10 @@
           <option value="hand">Handwriting</option>
         </select>
         
-        <!-- NEW SPEED SLIDER -->
+        <!-- SPEED SLIDER -->
         <div class="control-slider-wrap">
           <label for="speedSlider">Speed</label>
-          <input type="range" id="speedSlider" min="0.2" max="3.0" step="0.1" aria-label="Adjust animation speed" />
+          <input type="range" id="speedSlider" min="0.5" max="2.0" step="0.1" aria-label="Adjust animation speed" />
           <span id="speedValue">1.0x</span>
         </div>
       </div>
@@ -1245,8 +1245,12 @@
       lane.className = 'lane' + (laneIdx % 2 === 1 ? ' reverse' : '');
       var track = document.createElement('div');
       track.className = 'lane-track';
-      var duration = 32 + (laneIdx * 7) + Math.random() * 10;
-      track.style.setProperty('--dur', duration.toFixed(1) + 's');
+      
+      // FIXED SPEED LOGIC: Multiply a base speed by the number of quotes 
+      // so the drifting speed remains physically constant no matter the lane length.
+      var secondsPerQuote = 14 + (laneIdx * 1.5) + Math.random() * 2;
+      var totalDuration = Math.max(laneQuotes.length * secondsPerQuote, 30);
+      track.style.setProperty('--dur', totalDuration.toFixed(1) + 's');
 
       for (var copy = 0; copy < 2; copy++){
         laneQuotes.forEach(function(quote, i){
